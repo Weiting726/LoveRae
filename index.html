@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>专属恋人 · Secret Space</title>
+  
+  <!-- Web App iOS Setup -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="我们的专属空间">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Canvas Confetti for Celebration Effects -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Alpine.js for State Management -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+
+  <!-- Google Fonts & Custom Styling -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Pacifico&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans SC"', 'sans-serif'],
+            handwriting: ['Pacifico', 'cursive'],
+          },
+          colors: {
+            rose: {
+              50: '#fff1f2',
+              100: '#ffe4e6',
+              200: '#fecdd3',
+              300: '#fda4af',
+              400: '#fb7185',
+              500: '#f43f5e',
+              600: '#e11d48',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar & Animations */
+    ::-webkit-scrollbar { display: none; }
+    * { -webkit-tap-highlight-color: transparent; }
+    
+    @keyframes floatHeart {
+      0% { transform: translateY(0) scale(0.8); opacity: 1; }
+      100% { transform: translateY(-120px) scale(1.3); opacity: 0; }
+    }
+    
+    .animate-float-heart {
+      animation: floatHeart 1.5s ease-out forwards;
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 228, 230, 0.6);
+    }
+    
+    .polaroid-shadow {
+      box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    }
+  </style>
+</head>
+<body class="bg-rose-50/60 font-sans antialiased text-gray-800 min-h-screen flex justify-center selection:bg-rose-200">
+
+  <!-- Mobile Container Shell -->
+  <div x-data="loveApp()" class="w-full max-w-md min-h-screen bg-gradient-to-b from-rose-100/40 via-white to-rose-50/50 flex flex-col relative pb-28 border-x border-rose-100/50 shadow-2xl">
+    
+    <!-- Header / Status Bar -->
+    <header class="sticky top-0 z-30 glass-card px-5 py-3.5 flex items-center justify-between border-b border-rose-100/80">
+      <div class="flex items-center space-x-3">
+        <div class="relative">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-400 to-pink-300 flex items-center justify-center text-white font-bold shadow-md shadow-rose-200">
+            💕
+          </div>
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span>
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-gray-800 flex items-center gap-1">
+            <span>我们的专属空间</span>
+            <i data-lucide="sparkles" class="w-4 h-4 text-rose-400"></i>
+          </h1>
+          <p class="text-xs text-rose-500 font-medium" x-text="partnerStatusText"></p>
+        </div>
+      </div>
+      
+      <!-- Settings/Date Edit Button -->
+      <button @click="showDateModal = true" class="p-2 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-100 active:scale-95 transition-all">
+        <i data-lucide="calendar-heart" class="w-5 h-5"></i>
+      </button>
+    </header>
+
+    <!-- Floating Hearts Overlay Canvas for Interactions -->
+    <div class="fixed inset-0 pointer-events-none z-50" id="hearts-container"></div>
+
+    <!-- ==================== TAB 1: 首页 & 恋爱倒计时 ==================== -->
+    <main x-show="activeTab === 'home'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="p-5 space-y-5">
+      
+      <!-- Main Timer Card -->
+      <div class="glass-card rounded-3xl p-6 text-center relative overflow-hidden shadow-xl shadow-rose-100/50 border border-white">
+        <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-rose-200/40 rounded-full blur-2xl"></div>
+        <div class="absolute -left-8 -top-8 w-32 h-32 bg-pink-200/40 rounded-full blur-2xl"></div>
+
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100/80 text-rose-600 mb-3">
+          <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-500 text-rose-500 animate-pulse"></i>
+          我们相爱已有
+        </span>
+
+        <!-- Big Total Days -->
+        <div class="my-2">
+          <span class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-600" x-text="timer.totalDays"></span>
+          <span class="text-lg font-bold text-rose-400 ml-1">天</span>
+        </div>
+
+        <!-- Detailed Time Breakdown -->
+        <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-rose-100/60">
+          <div class="bg-white/70 p-2.5 rounded-2xl shadow-sm border border-rose-50">
+            <div class="text-xl font-bold text-gray-800" x-text="timer.hours"></div>
+            <div class="text-[11px] text-gray-400">小时</div>
+          </div>
+          <div class="bg-white/70 p-2.5 rounded-2xl shadow-sm border border-rose-50">
+            <div class="text-xl font-bold text-gray-800" x-text="timer.minutes"></div>
+            <div class="text-[11px] text-gray-400">分钟</div>
+          </div>
+          <div class="bg-white/70 p-2.5 rounded-2xl shadow-sm border border-rose-50">
+            <div class="text-xl font-bold text-rose-500 font-mono" x-text="timer.seconds"></div>
+            <div class="text-[11px] text-gray-400">秒</div>
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
+          <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+          纪念日起点: <span x-text="formatDate(anniversaryDate)"></span>
+        </p>
+      </div>
+
+      <!-- Quick Interactive Hug / Kiss Button -->
+      <div class="flex gap-3">
+        <button @click="triggerLoveInteraction('hug')" class="flex-1 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-400 to-pink-500 text-white font-semibold shadow-lg shadow-rose-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <span>给男朋友送个抱抱 🫂</span>
+        </button>
+        <button @click="triggerLoveInteraction('kiss')" class="py-3.5 px-4 rounded-2xl bg-white text-rose-500 border border-rose-200 font-semibold shadow-sm active:scale-95 transition-transform flex items-center justify-center">
+          <span>😘 啵啵</span>
+        </button>
+      </div>
+
+      <!-- Daily Love Quote Widget -->
+      <div class="glass-card rounded-2xl p-4 relative shadow-sm border border-rose-100">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-rose-500 flex items-center gap-1">
+            <i data-lucide="quote" class="w-3.5 h-3.5"></i> 每日浪漫情话
+          </span>
+          <button @click="nextQuote()" class="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-0.5">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 换一句
+          </button>
+        </div>
+        <p class="text-sm text-gray-700 italic leading-relaxed" x-text="currentQuote"></p>
+      </div>
+
+      <!-- Milestone Countdown Cards -->
+      <div>
+        <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
+          <i data-lucide="flag" class="w-4 h-4 text-rose-500"></i>
+          下一个纪念日倒计时
+        </h3>
+        <div class="space-y-2.5">
+          <template x-for="ms in milestones" :key="ms.id">
+            <div class="glass-card p-3.5 rounded-2xl flex items-center justify-between shadow-sm">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-500 text-lg" x-text="ms.icon"></div>
+                <div>
+                  <h4 class="text-sm font-bold text-gray-800" x-text="ms.title"></h4>
+                  <p class="text-xs text-gray-400" x-text="ms.targetDate"></p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-lg font-extrabold text-rose-500" x-text="ms.daysLeft"></span>
+                <span class="text-xs text-gray-400">天后</span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ==================== TAB 2: 专属点菜单 ==================== -->
+    <main x-show="activeTab === 'menu'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="p-5 space-y-4">
+      
+      <!-- Banner -->
+      <div class="bg-gradient-to-r from-rose-500 to-pink-500 rounded-3xl p-5 text-white shadow-xl shadow-rose-200 relative overflow-hidden">
+        <div class="relative z-10">
+          <span class="text-xs bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm font-medium">特权小金库</span>
+          <h2 class="text-xl font-extrabold mt-2">女朋友专属点单 💌</h2>
+          <p class="text-xs text-rose-100 mt-1">选择你想让他为你做的事，一键下达订单！</p>
+        </div>
+        <i data-lucide="utensils-crossed" class="absolute right-3 -bottom-2 w-24 h-24 text-white/10"></i>
+      </div>
+
+      <!-- Categories Filter -->
+      <div class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
+        <template x-for="cat in menuCategories" :key="cat">
+          <button 
+            @click="activeMenuCategory = cat" 
+            :class="activeMenuCategory === cat ? 'bg-rose-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-rose-100'"
+            class="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95">
+            <span x-text="cat"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- Menu Items Grid -->
+      <div class="grid grid-cols-1 gap-3">
+        <template x-for="item in filteredMenuItems" :key="item.id">
+          <div class="glass-card rounded-2xl p-3.5 flex items-center justify-between border border-rose-100/80 shadow-sm">
+            <div class="flex items-center space-x-3.5">
+              <div :class="item.bgColor" class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                <span x-text="item.icon"></span>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-gray-800" x-text="item.name"></h4>
+                <p class="text-xs text-gray-500 mt-0.5" x-text="item.desc"></p>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <span class="text-[11px] font-semibold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md" x-text="'价格: ' + item.price"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Add to Cart Button -->
+            <button @click="addToCart(item)" class="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-200 active:scale-90 transition-transform">
+              <i data-lucide="plus" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Cart Bottom Floating Bar -->
+      <div x-show="cart.length > 0" x-transition:enter="transition ease-out duration-300 transform translate-y-10" x-transition:enter-end="transform translate-y-0" class="fixed bottom-20 left-4 right-4 max-w-md mx-auto z-30">
+        <div class="bg-gray-900/90 backdrop-blur-xl text-white rounded-2xl p-3 px-4 flex items-center justify-between shadow-2xl border border-gray-700/50">
+          <div class="flex items-center space-x-3">
+            <div class="relative">
+              <div class="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center">
+                <i data-lucide="shopping-bag" class="w-5 h-5 text-white"></i>
+              </div>
+              <span class="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gray-900 font-extrabold text-xs w-5 h-5 rounded-full flex items-center justify-center border-2 border-gray-900" x-text="cartTotalCount"></span>
+            </div>
+            <div>
+              <div class="text-xs text-gray-300">已挑选服务卡片</div>
+              <div class="text-sm font-bold text-rose-300" x-text="cartTotalCount + ' 个服务等待履约'"></div>
+            </div>
+          </div>
+          <button @click="showCartModal = true" class="py-2 px-4 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 rounded-xl text-xs font-bold active:scale-95 transition-transform shadow-md shadow-rose-900/50">
+            查看清单 / 结算
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ==================== TAB 3: 照片墙 & 回忆宝盒 ==================== -->
+    <main x-show="activeTab === 'photos'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="p-5 space-y-4">
+      
+      <!-- Top Action Header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">甜蜜照片墙 📸</h2>
+          <p class="text-xs text-gray-500">记录每一个闪闪发光的瞬间</p>
+        </div>
+        <button @click="showUploadModal = true" class="px-3 py-2 bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-200 flex items-center gap-1 active:scale-95 transition-transform">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> 添加回忆
+        </button>
+      </div>
+
+      <!-- Photo Category Filter -->
+      <div class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
+        <template x-for="cat in photoCategories" :key="cat">
+          <button 
+            @click="activePhotoFilter = cat" 
+            :class="activePhotoFilter === cat ? 'bg-rose-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-rose-100'"
+            class="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95">
+            <span x-text="cat"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- Polaroid Photo Grid -->
+      <div class="grid grid-cols-2 gap-3.5">
+        <template x-for="(photo, index) in filteredPhotos" :key="photo.id">
+          <div @click="openLightbox(photo)" class="bg-white p-2.5 rounded-2xl polaroid-shadow border border-rose-50 transform hover:-translate-y-1 transition-all cursor-pointer group">
+            <div class="relative aspect-square rounded-xl overflow-hidden bg-rose-50">
+              <img :src="photo.url" :alt="photo.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80'">
+              <span class="absolute bottom-1.5 right-1.5 bg-black/50 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-md" x-text="photo.date"></span>
+            </div>
+            <div class="pt-2 px-1">
+              <h4 class="text-xs font-bold text-gray-800 truncate" x-text="photo.title"></h4>
+              <p class="text-[10px] text-rose-500 mt-0.5" x-text="'#' + photo.category"></p>
+            </div>
+          </div>
+        </template>
+      </div>
+
+    </main>
+
+    <!-- ==================== TAB 4: 许愿池 & 未来蓝图 ==================== -->
+    <main x-show="activeTab === 'wishes'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="p-5 space-y-5">
+      
+      <!-- Wish Input Section -->
+      <div class="glass-card rounded-3xl p-4 shadow-sm border border-rose-100">
+        <h3 class="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i> 许愿池 · 想和你一起完成的事
+        </h3>
+        <form @submit.prevent="addWish()" class="flex gap-2">
+          <input 
+            type="text" 
+            x-model="newWishText" 
+            placeholder="写下一个浪漫的新愿望..." 
+            class="flex-1 bg-white border border-rose-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-400 text-gray-700">
+          <button 
+            type="submit" 
+            class="bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-rose-200 active:scale-95 transition-transform whitespace-nowrap">
+            扔进许愿池
+          </button>
+        </form>
+      </div>
+
+      <!-- Wishlist List -->
+      <div class="space-y-2">
+        <template x-for="wish in wishes" :key="wish.id">
+          <div 
+            @click="toggleWish(wish.id)"
+            :class="wish.completed ? 'bg-emerald-50/80 border-emerald-200' : 'bg-white border-rose-100'"
+            class="p-3.5 rounded-2xl border shadow-sm flex items-center justify-between cursor-pointer transition-all active:scale-[0.99]">
+            <div class="flex items-center space-x-3">
+              <div 
+                :class="wish.completed ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300 text-transparent'"
+                class="w-5 h-5 rounded-full flex items-center justify-center transition-colors text-xs font-bold">
+                ✓
+              </div>
+              <span 
+                :class="wish.completed ? 'line-through text-gray-400 font-normal' : 'text-gray-800 font-medium'"
+                class="text-xs" 
+                x-text="wish.text"></span>
+            </div>
+            <span x-show="wish.completed" class="text-[10px] text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded-full">已实现 ✨</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Roadmap / Future Features Preview -->
+      <div class="pt-2">
+        <h3 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="rocket" class="w-3.5 h-3.5"></i> 未来功能蓝图
+        </h3>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-3.5 rounded-2xl border border-indigo-100">
+            <div class="text-xl">📖</div>
+            <h4 class="text-xs font-bold text-gray-800 mt-2">情侣双人日记</h4>
+            <p class="text-[10px] text-gray-500 mt-0.5">规划中 · 共享每日心情</p>
+          </div>
+          <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-2xl border border-amber-100">
+            <div class="text-xl">🎲</div>
+            <h4 class="text-xs font-bold text-gray-800 mt-2">情侣大富翁</h4>
+            <p class="text-[10px] text-gray-500 mt-0.5">即上线 · 专属双人游戏</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ==================== FIXED BOTTOM NAVBAR ==================== -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-rose-100 flex justify-around items-center py-2.5 z-40 rounded-t-3xl shadow-2xl">
+      
+      <button @click="switchTab('home')" :class="activeTab === 'home' ? 'text-rose-500 font-bold scale-105' : 'text-gray-400'" class="flex flex-col items-center gap-0.5 transition-all">
+        <i data-lucide="heart" class="w-5 h-5"></i>
+        <span class="text-[10px]">首页</span>
+      </button>
+
+      <button @click="switchTab('menu')" :class="activeTab === 'menu' ? 'text-rose-500 font-bold scale-105' : 'text-gray-400'" class="flex flex-col items-center gap-0.5 transition-all relative">
+        <i data-lucide="utensils" class="w-5 h-5"></i>
+        <span class="text-[10px]">专属点单</span>
+        <span x-show="cart.length > 0" class="absolute -top-1 right-2 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>
+      </button>
+
+      <button @click="switchTab('photos')" :class="activeTab === 'photos' ? 'text-rose-500 font-bold scale-105' : 'text-gray-400'" class="flex flex-col items-center gap-0.5 transition-all">
+        <i data-lucide="image" class="w-5 h-5"></i>
+        <span class="text-[10px]">回忆墙</span>
+      </button>
+
+      <button @click="switchTab('wishes')" :class="activeTab === 'wishes' ? 'text-rose-500 font-bold scale-105' : 'text-gray-400'" class="flex flex-col items-center gap-0.5 transition-all">
+        <i data-lucide="stars" class="w-5 h-5"></i>
+        <span class="text-[10px]">许愿池</span>
+      </button>
+
+    </nav>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. Date Configuration Modal -->
+    <div x-show="showDateModal" x-transition.opacity class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div @click.away="showDateModal = false" class="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-gray-800 text-center">设置你们的纪念日 💕</h3>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">选择相爱的起点日期:</label>
+          <input type="date" x-model="tempDateValue" class="w-full bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-xs text-gray-800 focus:outline-none">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button @click="showDateModal = false" class="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-xs font-semibold">取消</button>
+          <button @click="saveAnniversaryDate()" class="flex-1 py-2 bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-200">保存更新</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Cart & Order Modal -->
+    <div x-show="showCartModal" x-transition.opacity class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center">
+      <div @click.away="showCartModal = false" class="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 shadow-2xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+          <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+            <span>点单确认清单</span>
+            <span class="text-xs bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full" x-text="cartTotalCount + ' 项'"></span>
+          </h3>
+          <button @click="showCartModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <!-- Selected Items Scroll Area -->
+        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+          <template x-for="item in cart" :key="item.id">
+            <div class="flex items-center justify-between bg-rose-50/50 p-3 rounded-2xl border border-rose-100">
+              <div>
+                <div class="text-xs font-bold text-gray-800" x-text="item.name"></div>
+                <div class="text-[10px] text-rose-500" x-text="item.price"></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button @click="updateCartQty(item.id, -1)" class="w-6 h-6 rounded-full bg-white text-gray-600 border flex items-center justify-center text-xs font-bold">-</button>
+                <span class="text-xs font-bold text-gray-800" x-text="item.qty"></span>
+                <button @click="updateCartQty(item.id, 1)" class="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold">+</button>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Note to Boyfriend -->
+        <div>
+          <label class="text-xs font-semibold text-gray-600 block mb-1">给男朋友的留言/备注:</label>
+          <input type="text" x-model="orderNote" placeholder="例如：‘今晚就要！’ 或 ‘态度要温柔’" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-rose-400">
+        </div>
+
+        <!-- Submit Button -->
+        <button @click="submitOrder()" class="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-200 active:scale-95 transition-transform">
+          确认发送订单给男朋友 🚀
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. Receipt Confirmation Modal -->
+    <div x-show="showReceiptModal" x-transition.opacity class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl text-center space-y-4 border border-rose-100 relative">
+        <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-500 text-2xl mx-auto">
+          ✓
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-gray-800">订单已成功发送！🎉</h3>
+          <p class="text-xs text-gray-500 mt-1">已经将你的特别需求通知给男朋友啦，请耐心等待履约~</p>
+        </div>
+        
+        <div class="bg-rose-50 p-3 rounded-2xl text-left space-y-1 text-xs border border-rose-100">
+          <div class="text-gray-400 text-[10px]">订单编号: #LOVE-<span x-text="Math.floor(1000 + Math.random() * 9000)"></span></div>
+          <div class="font-bold text-gray-700">留言: <span class="text-rose-600 font-normal" x-text="orderNote || '无'"></span></div>
+        </div>
+
+        <button @click="showReceiptModal = false" class="w-full py-2.5 bg-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-200">
+          知道啦，坐等履约 💖
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. Photo Upload Modal -->
+    <div x-show="showUploadModal" x-transition.opacity class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div @click.away="showUploadModal = false" class="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl space-y-3">
+        <h3 class="text-base font-bold text-gray-800 text-center">添加一张新照片 📷</h3>
+        
+        <div class="space-y-2">
+          <input type="text" x-model="newPhotoTitle" placeholder="照片标题 (例如：第一次去海边)" class="w-full bg-rose-50 border border-rose-200 rounded-xl p-2 text-xs focus:outline-none">
+          
+          <select x-model="newPhotoCategory" class="w-full bg-rose-50 border border-rose-200 rounded-xl p-2 text-xs focus:outline-none text-gray-700">
+            <template x-for="cat in photoCategories.filter(c => c !== '所有回忆')" :key="cat">
+              <option :value="cat" x-text="cat"></option>
+            </template>
+          </select>
+
+          <input type="date" x-model="newPhotoDate" class="w-full bg-rose-50 border border-rose-200 rounded-xl p-2 text-xs focus:outline-none">
+
+          <div>
+            <label class="text-[11px] text-gray-400 block mb-1">选择本地照片:</label>
+            <input type="file" @change="handleImageUpload($event)" accept="image/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-rose-100 file:text-rose-600">
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button @click="showUploadModal = false" class="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-xs font-semibold">取消</button>
+          <button @click="saveNewPhoto()" class="flex-1 py-2 bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-200">上传保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Photo Lightbox Modal -->
+    <div x-show="activeLightboxPhoto" x-transition.opacity class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div @click.away="activeLightboxPhoto = null" class="w-full max-w-sm space-y-3">
+        <div class="relative bg-white p-3 rounded-3xl polaroid-shadow">
+          <img :src="activeLightboxPhoto?.url" class="w-full rounded-2xl max-h-[60vh] object-cover">
+          <div class="pt-3 px-1 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-gray-800" x-text="activeLightboxPhoto?.title"></h3>
+              <p class="text-xs text-rose-500" x-text="activeLightboxPhoto?.date + ' · ' + activeLightboxPhoto?.category"></p>
+            </div>
+            <button @click="triggerLoveInteraction('heart')" class="p-2 rounded-full bg-rose-50 text-rose-500">
+              <i data-lucide="heart" class="w-5 h-5 fill-rose-500"></i>
+            </button>
+          </div>
+        </div>
+        <button @click="activeLightboxPhoto = null" class="w-full py-2 bg-white/20 text-white rounded-xl text-xs font-medium">关闭预览</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    function loveApp() {
+      return {
+        activeTab: 'home',
+        partnerStatusText: '陪伴中的第 1000+ 天',
+        anniversaryDate: localStorage.getItem('love_anniversary_date') || '2023-05-20T00:00:00',
+        tempDateValue: '',
+        showDateModal: false,
+        
+        // Live Timer
+        timer: { totalDays: 0, hours: '00', minutes: '00', seconds: '00' },
+        
+        // Quotes
+        quoteIndex: 0,
+        quotes: [
+          "无论天气如何，和你在一起的每一天都是晴天 ☀️",
+          "宇宙中有千千万万颗星球，但我只想要你的这一颗 🌟",
+          "你是我所有不快乐里的解药，是我所有平凡日子里的惊喜 ✨",
+          "故事很长，我用余生慢慢讲给你听 💕",
+          "世界上最甜的事情，莫过于睁开眼第一眼看到的就是你 🌸"
+        ],
+
+        // Milestones
+        milestones: [
+          { id: 1, title: '下一个周年纪念日 🎂', targetDate: '05月20日', daysLeft: 0, icon: '🎁' },
+          { id: 2, title: '女朋友生日 👑', targetDate: '10月15日', daysLeft: 0, icon: '🎉' },
+          { id: 3, title: '下一次海边旅行 ✈️', targetDate: '12月25日', daysLeft: 45, icon: '🌊' }
+        ],
+
+        // Menu Data
+        activeMenuCategory: '全部',
+        menuCategories: ['全部', '专属特权', '贴心服务', '美食甜点'],
+        menuItems: [
+          { id: 1, name: '无条件原谅卡 🛡️', category: '专属特权', price: '紧急时免费使用', desc: '吵架直接生效应答，男朋友必须无条件认错拥抱！', icon: '🛡️', bgColor: 'bg-rose-100' },
+          { id: 2, name: '肩颈舒缓按摩 15min 💆‍♀️', category: '贴心服务', price: '1个甜甜的吻', desc: '专业手法按压，附赠热敷与温柔唠嗑服务。', icon: '💆‍♀️', bgColor: 'bg-amber-100' },
+          { id: 3, name: '男朋友特制晚饭 🍳', category: '美食甜点', price: '点赞加好评', desc: '点你想吃的任何菜系，主厨亲自采购烹饪。', icon: '🍳', bgColor: 'bg-emerald-100' },
+          { id: 4, name: '深夜陪看电影/剧集 🍿', category: '贴心服务', price: '准备好零食', desc: '全程陪同提供怀抱，绝对不提前剧透不打瞌睡！', icon: '🎬', bgColor: 'bg-indigo-100' },
+          { id: 5, name: '清空购物车额度卡 🛍️', category: '专属特权', price: '超级好心情', desc: '承包你心仪很久的小心愿/好物（指定范围内）。', icon: '🛍️', bgColor: 'bg-purple-100' },
+          { id: 6, name: '深夜炸鸡奶茶宵夜 🧋', category: '美食甜点', price: '一口抱抱', desc: '破戒美食自由！男朋友亲自下楼买回送到床边。', icon: '🍗', bgColor: 'bg-orange-100' },
+          { id: 7, name: '吹头发温柔服务 💇‍♀️', category: '贴心服务', price: '摸摸头', desc: '洗完头只需坐好，男朋友为你吹干头发并梳顺。', icon: '💨', bgColor: 'bg-cyan-100' }
+        ],
+        cart: [],
+        showCartModal: false,
+        showReceiptModal: false,
+        orderNote: '',
+
+        // Photo Gallery
+        activePhotoFilter: '所有回忆',
+        photoCategories: ['所有回忆', '甜蜜旅行', '日常干饭', '节日纪念'],
+        photos: JSON.parse(localStorage.getItem('love_photos_data')) || [
+          { id: 1, title: '第一次看海 🌊', category: '甜蜜旅行', date: '2023-08-15', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80' },
+          { id: 2, title: '浪漫烛光晚餐 🕯️', category: '节日纪念', date: '2023-10-01', url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80' },
+          { id: 3, title: '周末干饭日记 🥞', category: '日常干饭', date: '2023-11-20', url: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?auto=format&fit=crop&w=600&q=80' },
+          { id: 4, title: '公园散步看落日 🌇', category: '日常干饭', date: '2024-03-12', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?auto=format&fit=crop&w=600&q=80' }
+        ],
+        showUploadModal: false,
+        activeLightboxPhoto: null,
+        newPhotoTitle: '',
+        newPhotoCategory: '甜蜜旅行',
+        newPhotoDate: '',
+        newPhotoBase64: '',
+
+        // Wishlist
+        wishes: JSON.parse(localStorage.getItem('love_wishes_data')) || [
+          { id: 1, text: '一起去看一次海边的日落 🌅', completed: true },
+          { id: 2, text: '去迪士尼戴上米奇头饰拍照 🏰', completed: false },
+          { id: 3, text: '一起学做一道复杂的烘焙蛋糕 🎂', completed: false },
+          { id: 4, text: '组装一套属于我们俩的乐高积木 🧱', completed: true }
+        ],
+        newWishText: '',
+
+        // Init Lifecycle
+        init() {
+          this.updateTimer();
+          setInterval(() => this.updateTimer(), 1000);
+          this.calculateMilestones();
+          this.$nextTick(() => lucide.createIcons());
+        },
+
+        switchTab(tab) {
+          this.activeTab = tab;
+          this.$nextTick(() => lucide.createIcons());
+        },
+
+        // Timer Logic
+        updateTimer() {
+          const start = new Date(this.anniversaryDate).getTime();
+          const now = new Date().getTime();
+          const diff = now - start;
+
+          if (diff < 0) {
+            this.timer = { totalDays: 0, hours: '00', minutes: '00', seconds: '00' };
+            return;
+          }
+
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+          this.timer = {
+            totalDays: days,
+            hours: hours < 10 ? '0' + hours : hours,
+            minutes: minutes < 10 ? '0' + minutes : minutes,
+            seconds: seconds < 10 ? '0' + seconds : seconds
+          };
+        },
+
+        formatDate(dateStr) {
+          if (!dateStr) return '';
+          const d = new Date(dateStr);
+          return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+        },
+
+        saveAnniversaryDate() {
+          if (this.tempDateValue) {
+            this.anniversaryDate = this.tempDateValue + 'T00:00:00';
+            localStorage.setItem('love_anniversary_date', this.anniversaryDate);
+            this.updateTimer();
+            this.showDateModal = false;
+          }
+        },
+
+        calculateMilestones() {
+          const now = new Date();
+          const nextAnniv = new Date(now.getFullYear(), 4, 20); // May 20
+          if (now > nextAnniv) nextAnniv.setFullYear(now.getFullYear() + 1);
+          const diffDays = Math.ceil((nextAnniv - now) / (1000 * 60 * 60 * 24));
+          this.milestones[0].daysLeft = diffDays;
+        },
+
+        // Quotes
+        get currentQuote() {
+          return this.quotes[this.quoteIndex];
+        },
+        nextQuote() {
+          this.quoteIndex = (this.quoteIndex + 1) % this.quotes.length;
+        },
+
+        // Love Interactions
+        triggerLoveInteraction(type) {
+          // Trigger Confetti
+          if (typeof confetti === 'function') {
+            confetti({
+              particleCount: 40,
+              spread: 60,
+              origin: { y: 0.8 },
+              colors: ['#f43f5e', '#fda4af', '#ffe4e6']
+            });
+          }
+
+          // Floating heart element
+          const container = document.getElementById('hearts-container');
+          const heart = document.createElement('div');
+          heart.className = 'absolute text-3xl animate-float-heart';
+          heart.style.left = Math.random() * 80 + 10 + '%';
+          heart.style.bottom = '15%';
+          heart.innerText = type === 'kiss' ? '😘' : '💖';
+          container.appendChild(heart);
+          setTimeout(() => heart.remove(), 1500);
+        },
+
+        // Menu & Cart
+        get filteredMenuItems() {
+          if (this.activeMenuCategory === '全部') return this.menuItems;
+          return this.menuItems.filter(i => i.category === this.activeMenuCategory);
+        },
+        addToCart(item) {
+          const found = this.cart.find(c => c.id === item.id);
+          if (found) {
+            found.qty++;
+          } else {
+            this.cart.push({ ...item, qty: 1 });
+          }
+          this.triggerLoveInteraction('hug');
+        },
+        updateCartQty(id, delta) {
+          const found = this.cart.find(c => c.id === id);
+          if (found) {
+            found.qty += delta;
+            if (found.qty <= 0) {
+              this.cart = this.cart.filter(c => c.id !== id);
+            }
+          }
+        },
+        get cartTotalCount() {
+          return this.cart.reduce((acc, cur) => acc + cur.qty, 0);
+        },
+        submitOrder() {
+          this.showCartModal = false;
+          this.showReceiptModal = true;
+          this.cart = [];
+          if (typeof confetti === 'function') {
+            confetti({
+              particleCount: 100,
+              spread: 80,
+              origin: { y: 0.6 }
+            });
+          }
+        },
+
+        // Photos
+        get filteredPhotos() {
+          if (this.activePhotoFilter === '所有回忆') return this.photos;
+          return this.photos.filter(p => p.category === this.activePhotoFilter);
+        },
+        openLightbox(photo) {
+          this.activeLightboxPhoto = photo;
+          this.$nextTick(() => lucide.createIcons());
+        },
+        handleImageUpload(e) {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              this.newPhotoBase64 = event.target.result;
+            };
+            reader.readAsDataURL(file);
+          }
+        },
+        saveNewPhoto() {
+          if (!this.newPhotoTitle || !this.newPhotoBase64) return;
+          const newObj = {
+            id: Date.now(),
+            title: this.newPhotoTitle,
+            category: this.newPhotoCategory,
+            date: this.newPhotoDate || new Date().toISOString().split('T')[0],
+            url: this.newPhotoBase64
+          };
+          this.photos.unshift(newObj);
+          localStorage.setItem('love_photos_data', JSON.stringify(this.photos));
+          this.showUploadModal = false;
+          this.newPhotoTitle = '';
+          this.newPhotoBase64 = '';
+        },
+
+        // Wishes
+        addWish() {
+          if (!this.newWishText.trim()) return;
+          this.wishes.unshift({
+            id: Date.now(),
+            text: this.newWishText.trim(),
+            completed: false
+          });
+          localStorage.setItem('love_wishes_data', JSON.stringify(this.wishes));
+          this.newWishText = '';
+        },
+        toggleWish(id) {
+          const w = this.wishes.find(item => item.id === id);
+          if (w) {
+            w.completed = !w.completed;
+            localStorage.setItem('love_wishes_data', JSON.stringify(this.wishes));
+            if (w.completed) this.triggerLoveInteraction('kiss');
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>
