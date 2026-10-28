@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Our Secret Space - 我们的专属空间</title>
+    <!-- iOS / PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OurSpace">
+    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=180&auto=format&fit=crop">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Confetti Canvas CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 182, 193, 0.3);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes floatHeart {
+            0% { transform: translateY(0) scale(0.8); opacity: 1; }
+            100% { transform: translateY(-120px) scale(1.3); opacity: 0; }
+        }
+        .floating-heart {
+            position: absolute;
+            animation: floatHeart 2s ease-out forwards;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-rose-100 via-pink-50 to-red-100 min-h-screen text-slate-800 pb-24">
+
+    <!-- 全局头部 Header -->
+    <header class="sticky top-0 z-40 glass-card px-4 py-3 flex justify-between items-center shadow-sm">
+        <div class="flex items-center space-x-2">
+            <span class="text-2xl">💖</span>
+            <h1 class="font-bold text-lg text-rose-600 tracking-wide" id="appTitle">Our Secret Space</h1>
+        </div>
+        <button onclick="toggleConfigModal()" class="text-xs bg-rose-100 text-rose-600 px-3 py-1.5 rounded-full font-medium shadow-sm hover:bg-rose-200 transition">
+            <i class="fa-solid fa-gear mr-1"></i>设置
+        </button>
+    </header>
+
+    <!-- 主体内容区域 (Tab 页面) -->
+    <main class="max-w-md mx-auto p-4 space-y-4">
+
+        <!-- ================= TAB 1: 首页 / 纪念日倒计时 ================= -->
+        <section id="tab-home" class="tab-content space-y-4">
+            <!-- 恋爱天数卡片 -->
+            <div class="glass-card rounded-3xl p-6 text-center shadow-md relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 text-pink-100 text-9xl pointer-events-none">❤️</div>
+                <h2 class="text-sm font-medium text-rose-500 uppercase tracking-widest" id="anniversaryTitle">我们已经相爱了</h2>
+                <div class="my-4">
+                    <span id="daysCount" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-600">0</span>
+                    <span class="text-lg font-bold text-rose-400 ml-1">天</span>
+                </div>
+                <div class="flex justify-center space-x-3 text-xs text-slate-500 bg-white/60 py-2 px-4 rounded-full max-w-xs mx-auto shadow-inner">
+                    <span><strong id="timerHours" class="text-rose-600">0</strong> 小时</span>
+                    <span><strong id="timerMins" class="text-rose-600">0</strong> 分</span>
+                    <span><strong id="timerSecs" class="text-rose-600">0</strong> 秒</span>
+                </div>
+                <!-- 互动发送抱抱 -->
+                <button onclick="sendLoveInteraction(event)" class="mt-5 w-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg active:scale-95 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-heart animate-bounce"></i>
+                    <span>送一个遥远的抱抱</span>
+                </button>
+            </div>
+
+            <!-- 每日情话 / 专属留言 -->
+            <div class="glass-card rounded-2xl p-4 shadow-sm border-l-4 border-rose-400">
+                <div class="flex items-center space-x-2 mb-1 text-rose-500 text-xs font-bold">
+                    <i class="fa-solid fa-quote-left"></i>
+                    <span>每日专属情话</span>
+                </div>
+                <p id="dailyQuote" class="text-sm text-slate-700 italic leading-relaxed">
+                    “无论今天天气如何，想到你，心里就刮起了温热的春风。”
+                </p>
+            </div>
+
+            <!-- 快捷入口卡片 -->
+            <div class="grid grid-cols-2 gap-3">
+                <div onclick="switchTab('takeout')" class="glass-card p-4 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-white/90 transition shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl">🛵</div>
+                    <div>
+                        <div class="font-bold text-sm">私房点单</div>
+                        <div class="text-xs text-slate-400">呼叫专属大厨</div>
+                    </div>
+                </div>
+                <div onclick="switchTab('memory')" class="glass-card p-4 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-white/90 transition shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl">📸</div>
+                    <div>
+                        <div class="font-bold text-sm">回忆地图</div>
+                        <div class="text-xs text-slate-400">足迹与相册</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 2: 特权卡 / 任务清单 ================= -->
+        <section id="tab-tasks" class="tab-content hidden space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-lg text-slate-800">特权清单</h2>
+                    <p class="text-xs text-slate-400">可以随时使用的男友专属特权</p>
+                </div>
+                <button onclick="openPrivilegeModal()" class="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-xl font-medium shadow-md hover:bg-rose-600 transition">
+                    + 新建特权
+                </button>
+            </div>
+
+            <!-- 特权列表容器 -->
+            <div id="privilegesList" class="space-y-3">
+                <!-- 动态加载 -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 3: 私房外卖 / 菜品点单 ================= -->
+        <section id="tab-takeout" class="tab-content hidden space-y-3">
+            <div class="flex justify-between items-center mb-1">
+                <div>
+                    <h2 class="font-bold text-lg text-slate-800">深夜专属外卖</h2>
+                    <p class="text-xs text-slate-400">无论想吃什么，大厨随时接单</p>
+                </div>
+                <button onclick="openAddMenuModal()" class="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-xl font-medium shadow-md hover:bg-amber-600 transition">
+                    ⚙️ 店长上新
+                </button>
+            </div>
+
+            <div class="glass-card rounded-2xl overflow-hidden flex h-[460px] shadow-sm">
+                <!-- 左侧分类侧边栏 -->
+                <div id="categorySidebar" class="w-24 bg-rose-50/50 border-r border-rose-100 overflow-y-auto text-xs text-slate-600">
+                    <!-- 动态加载分类 -->
+                </div>
+                <!-- 右侧菜品列表 -->
+                <div id="menuItemsContainer" class="flex-1 overflow-y-auto p-3 space-y-3">
+                    <!-- 动态加载菜品 -->
+                </div>
+            </div>
+
+            <!-- 底部购物车结算条 -->
+            <div class="glass-card rounded-2xl p-3 flex justify-between items-center shadow-lg border-2 border-rose-200">
+                <div class="flex items-center space-x-3">
+                    <div class="relative cursor-pointer" onclick="openCartModal()">
+                        <div class="w-12 h-12 rounded-full bg-rose-500 text-white flex items-center justify-center text-xl shadow-md">
+                            🛒
+                        </div>
+                        <span id="cartBadge" class="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">0</span>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">已选餐品</div>
+                        <div class="text-sm font-bold text-rose-600" id="cartTotalPrice">❤️ 0</div>
+                    </div>
+                </div>
+                <button onclick="submitOrder()" class="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md active:scale-95 transition text-sm">
+                    立即下单
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 4: 回忆墙 & 地图定位 ================= -->
+        <section id="tab-memory" class="tab-content hidden space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-lg text-slate-800">回忆照片墙</h2>
+                    <p class="text-xs text-slate-400">记录每一个有你的美好角落</p>
+                </div>
+                <button onclick="openAddMemoryModal()" class="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-xl font-medium shadow-md hover:bg-rose-600 transition">
+                    + 上传打卡
+                </button>
+            </div>
+
+            <!-- 照片列表 -->
+            <div id="memoryGrid" class="grid grid-cols-1 gap-4">
+                <!-- 动态加载拍立得卡片 -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 5: 许愿池 & 未来蓝图 ================= -->
+        <section id="tab-wishes" class="tab-content hidden space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-lg text-slate-800">心愿清单</h2>
+                    <p class="text-xs text-slate-400">一起去一件件实现的小梦想</p>
+                </div>
+                <button onclick="openAddWishModal()" class="text-xs bg-purple-500 text-white px-3 py-1.5 rounded-xl font-medium shadow-md hover:bg-purple-600 transition">
+                    + 许下心愿
+                </button>
+            </div>
+
+            <!-- 愿望列表 -->
+            <div id="wishesList" class="space-y-3">
+                <!-- 动态加载 -->
+            </div>
+        </section>
+
+    </main>
+
+
+    <!-- ================= 底部固定导航栏 ================= -->
+    <nav class="fixed bottom-0 left-0 right-0 glass-card border-t border-rose-100 z-40 py-2 px-4 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center text-rose-500">
+                <i class="fa-solid fa-house-chimney text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">首页</span>
+            </button>
+            <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-btn flex flex-col items-center text-slate-400 hover:text-rose-400">
+                <i class="fa-solid fa-clipboard-list text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">特权</span>
+            </button>
+            <button onclick="switchTab('takeout')" id="nav-takeout" class="nav-btn flex flex-col items-center text-slate-400 hover:text-rose-400">
+                <i class="fa-solid fa-utensils text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">外卖</span>
+            </button>
+            <button onclick="switchTab('memory')" id="nav-memory" class="nav-btn flex flex-col items-center text-slate-400 hover:text-rose-400">
+                <i class="fa-solid fa-map-location-dot text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">足迹</span>
+            </button>
+            <button onclick="switchTab('wishes')" id="nav-wishes" class="nav-btn flex flex-col items-center text-slate-400 hover:text-rose-400">
+                <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">许愿</span>
+            </button>
+        </div>
+    </nav>
+
+
+    <!-- ================= 各种弹窗 Modal ================= -->
+
+    <!-- 1. 设置 / 纪念日配置 Modal -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-6 w-full max-w-sm space-y-4 bg-white shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-800">设置与 Supabase 配置</h3>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-500 font-semibold mb-1">相恋起始日期</label>
+                    <input type="datetime-local" id="anniversaryInput" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                    <label class="block text-slate-500 font-semibold mb-1">App 标题名称</label>
+                    <input type="text" id="appTitleInput" placeholder="例如：Our Secret Space" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                    <label class="block text-slate-500 font-semibold mb-1">Supabase Anon Key (用于云端同步)</label>
+                    <textarea id="supabaseKeyInput" placeholder="粘贴从 Supabase 复制的 anon public key..." rows="3" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400 font-mono text-[10px]"></textarea>
+                </div>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="saveConfig()" class="flex-1 bg-rose-500 text-white py-2.5 rounded-xl font-bold text-sm shadow">保存更改</button>
+                <button onclick="toggleConfigModal()" class="px-4 bg-slate-100 text-slate-500 py-2.5 rounded-xl text-sm">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 地图展示 Modal -->
+    <div id="mapModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-4 w-full max-w-sm space-y-3 bg-white shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 id="mapModalTitle" class="font-bold text-sm text-slate-800">打卡地点</h3>
+                <button onclick="closeMapModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+            <div id="leafletMap" class="w-full h-64 rounded-2xl overflow-hidden border border-rose-200 shadow-inner"></div>
+            <p id="mapModalLoc" class="text-xs text-slate-500 text-center"></p>
+        </div>
+    </div>
+
+    <!-- 3. 上传回忆/照片 Modal -->
+    <div id="addMemoryModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-6 w-full max-w-sm space-y-3 bg-white shadow-2xl">
+            <h3 class="font-bold text-base text-slate-800">发布回忆瞬间</h3>
+            <div class="space-y-2 text-xs">
+                <input type="text" id="memoryTitle" placeholder="回忆标题 (例如：第一次看海)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="memoryImg" placeholder="图片链接 URL (支持直接粘贴)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="memoryLoc" placeholder="位置名称 (例如：上海 · 外滩)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" step="any" id="memoryLat" placeholder="纬度 (如 31.2304)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                    <input type="number" step="any" id="memoryLng" placeholder="经度 (如 121.4737)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="saveMemory()" class="flex-1 bg-rose-500 text-white py-2.5 rounded-xl font-bold text-sm shadow">发布回忆</button>
+                <button onclick="closeAddMemoryModal()" class="px-4 bg-slate-100 text-slate-500 py-2.5 rounded-xl text-sm">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 店长菜单上新 Modal -->
+    <div id="addMenuModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-6 w-full max-w-sm space-y-3 bg-white shadow-2xl">
+            <h3 class="font-bold text-base text-slate-800">店长菜品上新</h3>
+            <div class="space-y-2 text-xs">
+                <input type="text" id="menuName" placeholder="菜品/特权名称 (例如：黑松露牛排)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="menuCategory" placeholder="分类 (小吃/甜品/饮品/大餐/夜宵)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="menuPrice" placeholder="价格/暗号 (例如：❤️ 1 或 抱抱x1)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="menuIcon" placeholder="图标 Emoji (例如：🥩)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+                <input type="text" id="menuDesc" placeholder="简短描述 (美味又贴心)" class="w-full p-2.5 rounded-xl border border-rose-200 focus:outline-none">
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="saveMenuItem()" class="flex-1 bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm shadow">确认上新</button>
+                <button onclick="closeAddMenuModal()" class="px-4 bg-slate-100 text-slate-500 py-2.5 rounded-xl text-sm">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 订单成功弹窗 Modal -->
+    <div id="orderSuccessModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-6 w-full max-w-sm text-center space-y-4 bg-white shadow-2xl transform transition-all scale-100">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto shadow-inner">
+                ✓
+            </div>
+            <div>
+                <h3 class="font-bold text-xl text-slate-800">订单已送达大厨！</h3>
+                <p class="text-xs text-slate-400 mt-1">专属大厨即将为你制作，请耐心等待~</p>
+            </div>
+            <div id="receiptDetail" class="bg-rose-50/60 p-4 rounded-2xl text-left text-xs space-y-1.5 border border-rose-100 text-slate-600">
+                <!-- 小票明细 -->
+            </div>
+            <button onclick="closeOrderSuccessModal()" class="w-full bg-rose-500 text-white py-3 rounded-2xl font-bold shadow-lg">
+                好哒 💖
+            </button>
+        </div>
+    </div>
+
+
+    <!-- JavaScript 脚本逻辑 -->
+    <script>
+        // ================= 配置与初始化 =================
+        const SUPABASE_URL = "https://zsepiftqrpxzlcuwtyvk.supabase.co";
+        let SUPABASE_KEY = localStorage.getItem("ourspace_supabase_key") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZXBpZnRxcnB4emxjdXd0eXZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDc5MzMsImV4cCI6MjEwODc4MzkzM30.79_PZxgMMJY53v7E6J_7T8qI-fhTjqbyD2XZdfOZUHU";
+        let supabase = null;
+
+        if (SUPABASE_KEY && window.supabase) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+
+        // 默认数据定义 (当没有连接云端数据库时的默认本地数据)
+        let anniversaryDate = localStorage.getItem("ourspace_date") || "2023-05-20T00:00";
+        let appTitle = localStorage.getItem("ourspace_title") || "Our Secret Space";
+
+        let menuData = JSON.parse(localStorage.getItem("ourspace_menu")) || [
+            { id: 1, name: "原谅卡", category: "特权", price: "❤️ 1", icon: "🎟️", description: "无条件原谅一次小脾气" },
+            { id: 2, name: "吹头发服务", category: "夜宵", price: "❤️ 1", icon: "💇‍♀️", description: "洗完头后的专属吹风体验" },
+            { id: 3, name: "爱心特调饮品", category: "饮品", price: "❤️ 1", icon: "🧋", description: "包含全糖去冰的满满爱意" },
+            { id: 4, name: "深夜抱抱套餐", category: "夜宵", price: "❤️ 1", icon: "🧸", description: "30分钟超长治愈抱抱" }
+        ];
+
+        let memoryData = JSON.parse(localStorage.getItem("ourspace_memories")) || [
+            { id: 1, title: "初次相遇的下午", img_url: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop", location: "上海 · 阳光咖啡馆", lat: 31.2304, lng: 121.4737, date_str: "2023-05-20" }
+        ];
+
+        let wishData = JSON.parse(localStorage.getItem("ourspace_wishes")) || [
+            { id: 1, text: "一起看一次海边日出", completed: false },
+            { id: 2, name: "学会一起做一道大餐", completed: true }
+        ];
+
+        let cart = [];
+
+        // ================= 页面初始化加载 =================
+        window.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("appTitle").innerText = appTitle;
+            document.getElementById("appTitleInput").value = appTitle;
+            document.getElementById("anniversaryInput").value = anniversaryDate;
+            document.getElementById("supabaseKeyInput").value = SUPABASE_KEY;
+
+            startTimer();
+            renderMenu();
+            renderPrivileges();
+            renderMemories();
+            renderWishes();
+            fetchCloudData();
+        });
+
+        // 云端同步加载 (如果配置了 Supabase)
+        async function fetchCloudData() {
+            if (!supabase) return;
+            try {
+                // 加载菜品
+                const { data: menu } = await supabase.from('menu_items').select('*');
+                if (menu && menu.length > 0) {
+                    menuData = menu;
+                    renderMenu();
+                    renderPrivileges();
+                }
+                // 加载回忆
+                const { data: mems } = await supabase.from('memory_wall').select('*');
+                if (mems && mems.length > 0) {
+                    memoryData = mems;
+                    renderMemories();
+                }
+            } catch(e) {
+                console.log("Cloud sync error:", e);
+            }
+        }
+
+        // ================= 计时器逻辑 =================
+        function startTimer() {
+            function update() {
+                const start = new Date(anniversaryDate).getTime();
+                const now = new Date().getTime();
+                const diff = Math.max(0, now - start);
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById("daysCount").innerText = days;
+                document.getElementById("timerHours").innerText = hours;
+                document.getElementById("timerMins").innerText = mins;
+                document.getElementById("timerSecs").innerText = secs;
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        // ================= Tab 切换 =================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-rose-500');
+                btn.classList.add('text-slate-400');
+            });
+            document.getElementById(`nav-${tabName}`).classList.add('text-rose-500');
+            document.getElementById(`nav-${tabName}`).classList.remove('text-slate-400');
+        }
+
+        // ================= 互动爱心飘落 =================
+        function sendLoveInteraction(e) {
+            for (let i = 0; i < 8; i++) {
+                const heart = document.createElement("div");
+                heart.className = "floating-heart text-2xl";
+                heart.innerText = ["💖", "💗", "🌸", "✨", "💕"][Math.floor(Math.random() * 5)];
+                heart.style.left = `${e.clientX - 20 + (Math.random() * 60 - 30)}px`;
+                heart.style.top = `${e.clientY - 20}px`;
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 2000);
+            }
+        }
+
+        // ================= 外卖点单渲染逻辑 =================
+        function renderMenu() {
+            const categories = ["全部", ...new Set(menuData.map(item => item.category || "默认"))];
+            const sidebar = document.getElementById("categorySidebar");
+            sidebar.innerHTML = categories.map((cat, idx) => `
+                <div onclick="filterCategory('${cat}')" class="p-3 text-center cursor-pointer border-b border-rose-100 ${idx === 0 ? 'bg-white font-bold text-rose-600' : ''}">
+                    ${cat}
+                </div>
+            `).join('');
+
+            renderMenuItems(menuData);
+        }
+
+        function renderMenuItems(items) {
+            const container = document.getElementById("menuItemsContainer");
+            container.innerHTML = items.map(item => `
+                <div class="bg-white/90 p-3 rounded-2xl flex justify-between items-center shadow-sm hover:shadow transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="text-3xl bg-rose-50 w-12 h-12 rounded-xl flex items-center justify-center">${item.icon || '🍱'}</div>
+                        <div>
+                            <div class="font-bold text-sm text-slate-800">${item.name}</div>
+                            <div class="text-[10px] text-slate-400">${item.description || ''}</div>
+                            <div class="text-xs font-bold text-rose-500 mt-0.5">${item.price || '❤️ 1'}</div>
+                        </div>
+                    </div>
+                    <button onclick="addToCart('${item.name}')" class="bg-rose-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm shadow active:scale-95">
+                        +
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(itemName) {
+            cart.push(itemName);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            document.getElementById("cartBadge").innerText = cart.length;
+            document.getElementById("cartTotalPrice").innerText = `❤️ ${cart.length}`;
+        }
+
+        async function submitOrder() {
+            if (cart.length === 0) {
+                alert("购物车还是空的哦，快选一些餐品吧~");
+                return;
+            }
+
+            // 满屏庆祝特效
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+
+            // 保存到 Supabase (如可用)
+            if (supabase) {
+                try {
+                    await supabase.from('orders').insert([{
+                        item_name: cart.join(", "),
+                        note: "来自网页前端的订单"
+                    }]);
+                } catch(e) { console.log(e); }
+            }
+
+            // 弹出小票弹窗
+            const receipt = document.getElementById("receiptDetail");
+            receipt.innerHTML = `
+                <div><strong>下单时间：</strong> ${new Date().toLocaleString()}</div>
+                <div><strong>餐品清单：</strong> ${cart.join(" + ")}</div>
+                <div><strong>合计：</strong> ❤️ ${cart.length}</div>
+            `;
+            document.getElementById("orderSuccessModal").classList.remove("hidden");
+
+            cart = [];
+            updateCartUI();
+        }
+
+        function closeOrderSuccessModal() {
+            document.getElementById("orderSuccessModal").classList.add("hidden");
+        }
+
+        // ================= 特权卡渲染 =================
+        function renderPrivileges() {
+            const list = document.getElementById("privilegesList");
+            list.innerHTML = menuData.map(item => `
+                <div class="glass-card p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <div class="text-2xl">${item.icon || '🎁'}</div>
+                        <div>
+                            <div class="font-bold text-sm">${item.name}</div>
+                            <div class="text-xs text-slate-400">${item.description || '随时随地兑换使用'}</div>
+                        </div>
+                    </div>
+                    <button onclick="addToCart('${item.name}'); switchTab('takeout')" class="text-xs bg-rose-100 text-rose-600 px-3 py-1.5 rounded-xl font-bold">
+                        兑换
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ================= 回忆照片墙渲染 =================
+        function renderMemories() {
+            const grid = document.getElementById("memoryGrid");
+            grid.innerHTML = memoryData.map(m => `
+                <div class="glass-card p-3 rounded-3xl space-y-2 shadow-sm">
+                    <img src="${m.img_url}" class="w-full h-48 object-cover rounded-2xl shadow-inner">
+                    <div class="flex justify-between items-center px-1">
+                        <div>
+                            <h3 class="font-bold text-sm text-slate-800">${m.title}</h3>
+                            <p class="text-[10px] text-slate-400"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>${m.location || '未知地点'}</p>
+                        </div>
+                        <button onclick="openMapModal('${m.title}', ${m.lat || 31.2304}, ${m.lng || 121.4737}, '${m.location}')" class="text-xs bg-rose-50 text-rose-500 px-2.5 py-1 rounded-full font-medium">
+                            查看地图
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 地图弹窗与 Leaflet 初始化
+        let leafletMapObj = null;
+
+        function openMapModal(title, lat, lng, locStr) {
+            document.getElementById("mapModalTitle").innerText = title;
+            document.getElementById("mapModalLoc").innerText = locStr;
+            document.getElementById("mapModal").classList.remove("hidden");
+
+            setTimeout(() => {
+                if (!leafletMapObj) {
+                    leafletMapObj = L.map('leafletMap').setView([lat, lng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMapObj);
+                } else {
+                    leafletMapObj.setView([lat, lng], 13);
+                }
+                L.marker([lat, lng]).addTo(leafletMapObj)
+                    .bindPopup(title).openPopup();
+            }, 200);
+        }
+
+        function closeMapModal() {
+            document.getElementById("mapModal").classList.add("hidden");
+        }
+
+        // ================= 许愿池渲染 =================
+        function renderWishes() {
+            const list = document.getElementById("wishesList");
+            list.innerHTML = wishData.map((w, idx) => `
+                <div class="glass-card p-3.5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" ${w.completed ? 'checked' : ''} onchange="toggleWish(${idx})" class="w-4 h-4 accent-rose-500 rounded">
+                        <span class="text-sm font-medium ${w.completed ? 'line-through text-slate-400' : 'text-slate-700'}">${w.text || w.name}</span>
+                    </div>
+                    <span class="text-xs">${w.completed ? '🎉 已实现' : '⏳ 许愿中'}</span>
+                </div>
+            `).join('');
+        }
+
+        function toggleWish(idx) {
+            wishData[idx].completed = !wishData[idx].completed;
+            localStorage.setItem("ourspace_wishes", JSON.stringify(wishData));
+            renderWishes();
+        }
+
+        // ================= 各种添加与设置 Modal 控制 =================
+        function toggleConfigModal() {
+            document.getElementById("configModal").classList.toggle("hidden");
+        }
+
+        function saveConfig() {
+            const newDate = document.getElementById("anniversaryInput").value;
+            const newTitle = document.getElementById("appTitleInput").value;
+            const newKey = document.getElementById("supabaseKeyInput").value.trim();
+
+            if (newDate) {
+                anniversaryDate = newDate;
+                localStorage.setItem("ourspace_date", newDate);
+            }
+            if (newTitle) {
+                appTitle = newTitle;
+                localStorage.setItem("ourspace_title", newTitle);
+                document.getElementById("appTitle").innerText = newTitle;
+            }
+            if (newKey) {
+                SUPABASE_KEY = newKey;
+                localStorage.setItem("ourspace_supabase_key", newKey);
+            }
+
+            toggleConfigModal();
+            alert("设置保存成功！");
+            location.reload();
+        }
+
+        function openAddMemoryModal() { document.getElementById("addMemoryModal").classList.remove("hidden"); }
+        function closeAddMemoryModal() { document.getElementById("addMemoryModal").classList.add("hidden"); }
+
+        async function saveMemory() {
+            const title = document.getElementById("memoryTitle").value;
+            const img = document.getElementById("memoryImg").value;
+            const loc = document.getElementById("memoryLoc").value;
+            const lat = parseFloat(document.getElementById("memoryLat").value) || 31.2304;
+            const lng = parseFloat(document.getElementById("memoryLng").value) || 121.4737;
+
+            if (!title || !img) return alert("请填写标题和图片链接");
+
+            const newMem = { id: Date.now(), title, img_url: img, location: loc, lat, lng, date_str: new Date().toISOString().split('T')[0] };
+            memoryData.unshift(newMem);
+            localStorage.setItem("ourspace_memories", JSON.stringify(memoryData));
+            renderMemories();
+
+            if (supabase) {
+                try { await supabase.from('memory_wall').insert([newMem]); } catch(e){}
+            }
+
+            closeAddMemoryModal();
+        }
+
+        function openAddMenuModal() { document.getElementById("addMenuModal").classList.remove("hidden"); }
+        function closeAddMenuModal() { document.getElementById("addMenuModal").classList.add("hidden"); }
+
+        async function saveMenuItem() {
+            const name = document.getElementById("menuName").value;
+            const category = document.getElementById("menuCategory").value || "特权";
+            const price = document.getElementById("menuPrice").value || "❤️ 1";
+            const icon = document.getElementById("menuIcon").value || "🍱";
+            const description = document.getElementById("menuDesc").value;
+
+            if (!name) return alert("请输入菜品名称");
+
+            const newItem = { id: Date.now(), name, category, price, icon, description };
+            menuData.push(newItem);
+            localStorage.setItem("ourspace_menu", JSON.stringify(menuData));
+            renderMenu();
+            renderPrivileges();
+
+            if (supabase) {
+                try { await supabase.from('menu_items').insert([newItem]); } catch(e){}
+            }
+
+            closeAddMenuModal();
+        }
+    </script>
+</body>
+</html>
